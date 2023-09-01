@@ -1,8 +1,61 @@
 const User =  require('../Models/user');
 const AppError = require('../Utils/error.util');
 const bcrypt = require('bcrypt');
-const Otp = require('otp');
+const Otp = require('../Models/otp');
+const jwt = require('jsonwebtoken');
 
+const sendOtp = async(req, res, next)=>{
+    try{
+
+        //fetch email
+        const {email} = req.body;
+    
+        //check user if already exists
+        const userExist = await User.findOne({email});
+    
+        // user not registered
+        if(!userExist){
+            return next(new AppError("user not registerd",401))
+        }
+    
+        //Generate otp
+    
+        let otp = otpGenerator.generate(6, {
+            upperCaseAlphabets: false,
+            lowerCaseAlphabets: false,
+            specialChars: false
+        });
+        console.log(`generated otp are  : - > ${otp}`);
+    
+        // check unique otp or not
+        let result = await Otp.findOne({ otp: otp })
+        while (result) {
+            otp = otpGenerator.generate(6, {
+                upperCaseAlphabets: false,
+                lowerCaseAlphabets: false,
+                specialChars: false
+            });
+            result = await Otp.findOne({ otp: otp })
+        }
+        const otpPayload = { email, otp }
+    
+        // create an entry in db
+        const otpBody = await Otp.create(otpPayload)
+    
+        // return success response
+        return res.status(200).json({
+            success: true,
+            message: "otp sent successfully",
+            data: otpBody
+        })
+    }
+    catch(err){
+        console.log(`not able to generate otp  ${err}`);
+        return next(new AppError(err.message, 500))
+    }
+
+
+}
 const signUp = async (req, res, next)=>{
     try{
 
