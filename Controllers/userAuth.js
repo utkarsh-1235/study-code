@@ -6,12 +6,15 @@ const jwt = require('jsonwebtoken');
 const otpGenerator = require('otp-generator');
 const mailSender = require('../Utils/mailSender');
 const Profile = require('../Models/profile');
+const {passwordUpdated} = require('../mailTemplate/updatedPassword');
+const emailValidator = require('email-validator');
 
 const sendOtp = async(req, res, next)=>{
     try{
 
         //fetch email
         const {email} = req.body;
+    
     
         //check user if already exists
         const userExist = await User.findOne({email});
@@ -60,7 +63,7 @@ const sendOtp = async(req, res, next)=>{
 
 }
 const signUp = async (req, res, next)=>{
-    try{
+    
 
         const {
             firstName,
@@ -72,16 +75,22 @@ const signUp = async (req, res, next)=>{
             otp
         } = req.body;
    
-        console.log(firstName, lastName, email, password, accountType, confirmPassword);
+        console.log(firstName, lastName, email, password, accountType, confirmPassword,otp);
         //validate
-        if(!firstName || !lastName || !email || !password || !accountType || !confirmPassword ){
+        if(!firstName || !lastName || !email || !password || !accountType || !confirmPassword || !otp){
                  return next(new AppError("please fill all the fields",403));           
         }
-   
+
+         //validate email using npm package "email-validator"
+      const validEmail = emailValidator.validate(email);
+      if (!validEmail) {
+      return next(new AppError("Please provide a valid email address 📩", 400))
+       }
+        try{
         // check user is already registered or not
         const userExist = await User.findOne({email})
    
-        //user not exist
+        //user exist 
         if(userExist){
              return next(new AppError("user already registered", 400))
         }
@@ -98,15 +107,9 @@ const signUp = async (req, res, next)=>{
                
          // validate otp 
          if (resentOtp.length === 0) {
-           return res.status(400).json({
-               success: false,
-               message: "otp not found"
-           })
+           return next(new AppError("otp not found", 400))
        } else if (otp != resentOtp[0].otp) {
-           return res.status(400).json({
-               success: false,
-               message: "invalid otp"
-           })
+           return next(new AppError("invalid otp", 400))
        }
    
         // hash the password 
@@ -140,7 +143,7 @@ const signUp = async (req, res, next)=>{
     }
 }
 
-
+  
 const login = async(req, res, next)=>{
     try {
         // fetch data 
